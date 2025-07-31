@@ -34,12 +34,14 @@ Server-Sent Events (SSE), streaming text data.
 ### Example: Using JavaScript (EventSource)
 
 ```javascript
-const source = new EventSource('http://localhost:8080/chat?q=Tell me about your experience.');
-source.onmessage = function(event) {
+const source = new EventSource(
+  "http://localhost:8080/chat?q=Tell me about your experience."
+);
+source.onmessage = function (event) {
   // Append event.data to your chat UI
   console.log(event.data);
 };
-source.onerror = function(err) {
+source.onerror = function (err) {
   source.close();
 };
 ```
@@ -47,8 +49,8 @@ source.onerror = function(err) {
 ### Example: Using Fetch API (with ReadableStream)
 
 ```javascript
-fetch('http://localhost:8080/chat?q=Tell me about your experience.')
-  .then(response => {
+fetch("http://localhost:8080/chat?q=Tell me about your experience.").then(
+  (response) => {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     function read() {
@@ -61,7 +63,8 @@ fetch('http://localhost:8080/chat?q=Tell me about your experience.')
       });
     }
     read();
-  });
+  }
+);
 ```
 
 ### Notes
@@ -69,3 +72,41 @@ fetch('http://localhost:8080/chat?q=Tell me about your experience.')
 - Ensure your frontend runs on a different port (e.g., 3000) and the backend allows CORS if needed.
 - For Alpine.js, use the above JavaScript in an Alpine component or as a custom function.
 - The endpoint streams responses in real time for a chat-like experience.
+
+---
+
+## Using POST /chat with Context (History)
+
+You can send a POST request to `/chat` with a JSON payload containing a `history` array for context-aware conversations.
+
+**Endpoint:**  
+`POST http://localhost:8080/chat`
+
+**Payload Example:**
+
+```json
+{
+  "history": [
+    { "role": "user", "text": "Tell me about your experience." },
+    {
+      "role": "model",
+      "text": "I have 5 years of experience in software engineering..."
+    },
+    { "role": "user", "text": "What programming languages do you use?" }
+  ]
+}
+```
+
+**Curl Example:**
+
+```sh
+curl -N -X POST http://localhost:8080/chat \
+  -H "Content-Type: application/json" \
+  -d '{"history":[{"role":"user","text":"Tell me about your experience."},{"role":"model","text":"I have 5 years of experience in software engineering..."},{"role":"user","text":"What programming languages do you use?"}]}'
+```
+
+- The response will be streamed as Server-Sent Events (SSE).
+- The `history` array should alternate between `"user"` and `"model"` roles for multi-turn chat.
+- The backend will always prepend the CV context automatically.
+
+---

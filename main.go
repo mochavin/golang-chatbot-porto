@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -45,6 +46,16 @@ func main() {
 	}
 
 	http.HandleFunc("/chat", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
 		var wordBuffer bytes.Buffer
 		ctx := context.Background()
 		client, err := genai.NewClient(ctx, &genai.ClientConfig{
@@ -56,21 +67,39 @@ func main() {
 			return
 		}
 
-		prompt := r.URL.Query().Get("q")
-		if prompt == "" {
-			http.Error(w, "Missing 'q' query param", 400)
-			return
-		}
-
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
-		// Compose context: CV + user prompt
+		// Compose context: CV + user prompt/history
 		contents := []*genai.Content{
 			genai.NewContentFromText("You are a helpful assistant. Only answer what is necessary based on the user's query, using the CV context below. Keep your answer concise, well-formatted, and do not include unnecessary details. Here is the CV context:\n"+cvText, "user"),
-			genai.NewContentFromText(prompt, "user"),
+		}
+
+		if r.Method == http.MethodPost {
+			type Message struct {
+				Role string `json:"role"`
+				Text string `json:"text"`
+			}
+			type Payload struct {
+				History []Message `json:"history"`
+			}
+			var payload Payload
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				http.Error(w, "Invalid JSON payload", 400)
+				return
+			}
+			for _, msg := range payload.History {
+				contents = append(contents, genai.NewContentFromText(msg.Text, genai.Role(msg.Role)))
+			}
+		} else {
+			// Legacy GET support
+			prompt := r.URL.Query().Get("q")
+			if prompt == "" {
+				http.Error(w, "Missing 'q' query param", 400)
+				return
+			}
+			contents = append(contents, genai.NewContentFromText(prompt, "user"))
 		}
 
 		stream := client.Models.GenerateContentStream(ctx, "gemini-2.5-flash", contents, nil)
