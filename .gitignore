@@ -1,0 +1,6 @@
+# .gitignore for Go
+*.exe
+*.log
+*.out
+*.test
+.env
