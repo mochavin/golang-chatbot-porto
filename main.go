@@ -73,7 +73,20 @@ func main() {
 
 		// Compose context: CV + user prompt/history
 		contents := []*genai.Content{
-			genai.NewContentFromText("You are a helpful assistant. Only answer what is necessary based on the user's query, using the CV context below. Keep your answer concise, well-formatted, and do not include unnecessary details. Here is the CV context:\n"+cvText, "user"),
+			genai.NewContentFromText(`
+				You are a smart, friendly assistant designed to help visitors learn more about the website owner's background.
+
+				Please answer user questions using only the CV context provided below.
+				Keep your responses:
+				- Clear and relevant
+				- Brief but informative
+				- Friendly and professional
+
+				Avoid making things up or including information not present in the CV.
+				When information is missing, say so honestly.
+
+				CV Context:
+				`+cvText, "user"),
 		}
 
 		if r.Method == http.MethodPost {
